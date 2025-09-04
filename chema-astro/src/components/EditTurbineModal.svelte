@@ -26,6 +26,7 @@
   // Loading and error states
   let isSubmitting = false;
   let errors: Record<string, string> = {};
+  let showUpdateConfirm = false;
 
   // Common manufacturers for dropdown
   const commonManufacturers = [
@@ -149,11 +150,19 @@
     };
   }
 
-  // Handle form submission
-  async function handleSubmit() {
+  // Handle form submission - show confirmation first
+  function handleSubmit() {
     if (!validateForm() || !turbine) return;
+    showUpdateConfirm = true;
+  }
+
+  // Handle confirmed update
+  async function handleConfirmedUpdate() {
+    if (!turbine) return;
 
     isSubmitting = true;
+    showUpdateConfirm = false;
+    
     try {
       const apiData = prepareDataForAPI(formData);
       const updatedTurbine = await windTurbineStore.updateTurbine(turbine.id, apiData);
@@ -165,6 +174,11 @@
     } finally {
       isSubmitting = false;
     }
+  }
+
+  // Cancel update confirmation
+  function cancelUpdate() {
+    showUpdateConfirm = false;
   }
 
   // Close modal and reset form
@@ -442,6 +456,78 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+{/if}
+
+<!-- Update Confirmation Modal -->
+{#if showUpdateConfirm}
+  <div 
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4"
+    on:click={cancelUpdate}
+  >
+    <div 
+      class="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+      on:click|stopPropagation
+    >
+      <!-- Modal header -->
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-900">Confirm Update</h2>
+        <button 
+          class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+          on:click={cancelUpdate}
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Confirmation message -->
+      <div class="mb-6">
+        <div class="flex items-center mb-3">
+          <div class="flex-shrink-0">
+            <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-lg font-medium text-blue-800">Update Confirmation</h3>
+          </div>
+        </div>
+        <p class="text-gray-700">
+          Are you sure you want to update <strong>{turbine?.name}</strong>? 
+          The changes will be saved and applied immediately.
+        </p>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          on:click={cancelUpdate}
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          on:click={handleConfirmedUpdate}
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isSubmitting}
+        >
+          {#if isSubmitting}
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Updating...
+          {:else}
+            Confirm Update
+          {/if}
+        </button>
+      </div>
     </div>
   </div>
 {/if}
