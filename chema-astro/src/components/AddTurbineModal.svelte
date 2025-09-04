@@ -105,11 +105,13 @@
     
     isSubmitting = true;
     try {
-      await windTurbineStore.createTurbine(formData);
-      dispatch('turbineCreated');
+      const newTurbine = await windTurbineStore.createTurbine(formData);
+      // Dispatch event with the new turbine data
+      dispatch('turbineCreated', { turbine: newTurbine });
       closeModal();
     } catch (error) {
       console.error('Failed to create turbine:', error);
+      // Don't close modal on error so user can retry
     } finally {
       isSubmitting = false;
     }

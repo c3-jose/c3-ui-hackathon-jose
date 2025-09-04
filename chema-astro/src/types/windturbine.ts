@@ -59,7 +59,12 @@ export interface FilterParams {
 
 export interface ApiResponse<T> {
   data: T;
-  total?: number;
-  page?: number;
-  limit?: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }

@@ -48,10 +48,17 @@
     showAddModal = true;
   }
 
-  function handleTurbineCreated() {
-    // Refresh the turbine list after creation - go to last page to see new turbine
-    const totalPages = Math.ceil(($windTurbineStore.totalCount + 1) / ITEMS_PER_PAGE);
-    windTurbineStore.fetchTurbines(totalPages, ITEMS_PER_PAGE);
+  function handleTurbineCreated(event) {
+    // Refresh the current page to get updated total count
+    windTurbineStore.fetchTurbines($windTurbineStore.currentPage, ITEMS_PER_PAGE, {});
+    
+    // Navigate to last page to show the new turbine
+    setTimeout(() => {
+      const totalPages = Math.ceil($windTurbineStore.totalCount / ITEMS_PER_PAGE);
+      if (totalPages > 0) {
+        windTurbineStore.fetchTurbines(totalPages, ITEMS_PER_PAGE, {});
+      }
+    }, 500); // Wait a bit for the first fetch to complete
   }
 
   // Pagination functions (no need for filters since we're doing client-side filtering)
@@ -80,7 +87,7 @@
   
   // Generate page numbers to show (show current page ± 2)
   $: pageNumbers = (() => {
-    if (totalPages <= 1) return [];
+    if (totalPages <= 1) return [1]; // Always show at least page 1
     
     const pages = [];
     const start = Math.max(1, currentPage - 2);
@@ -473,7 +480,7 @@
       </div>
       
       <!-- Pagination -->
-      {#if totalPages > 1}
+      {#if $windTurbineStore.totalCount > ITEMS_PER_PAGE}
         <div class="flex items-center justify-between mt-8">
         <div class="text-sm text-gray-600">
           Showing <span class="font-semibold">{startItem}</span> to <span class="font-semibold">{endItem}</span> of <span class="font-semibold">{$windTurbineStore.totalCount}</span> results

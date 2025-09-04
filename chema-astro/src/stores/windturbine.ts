@@ -142,16 +142,18 @@ function createWindTurbineStore() {
         update(state => ({ 
           ...state,
           turbines: response.data, 
-          totalCount: response.total || 0,
+          totalCount: response.pagination?.total || 0,
           currentPage: page,
           loading: false 
         }));
+        return response;
       } catch (error) {
         update(state => ({ 
           ...state,
           error: error instanceof Error ? error.message : 'Failed to fetch turbines',
           loading: false 
         }));
+        throw error;
       }
     },
     
@@ -173,9 +175,9 @@ function createWindTurbineStore() {
       update(state => ({ ...state, loading: true, error: null }));
       try {
         const newTurbine = await apiClient.createWindTurbine(turbineData);
+        // Just clear loading, let the UI handle refreshing
         update(state => ({ 
           ...state,
-          turbines: [...state.turbines, newTurbine],
           loading: false 
         }));
         return newTurbine;
@@ -184,6 +186,48 @@ function createWindTurbineStore() {
           ...state,
           error: error instanceof Error ? error.message : 'Failed to create turbine',
           loading: false 
+        }));
+        throw error;
+      }
+    },
+
+    updateTurbine: async (id: string, turbineData: Omit<WindTurbine, 'id' | 'createdAt' | 'updatedAt'>) => {
+      update(state => ({ ...state, loading: true, error: null }));
+      try {
+        const updatedTurbine = await apiClient.updateWindTurbine(id, turbineData);
+        update(state => ({
+          ...state,
+          // Update the turbine in the list if it exists
+          turbines: state.turbines.map(t => t.id === id ? updatedTurbine : t),
+          loading: false
+        }));
+        return updatedTurbine;
+      } catch (error) {
+        update(state => ({
+          ...state,
+          error: error instanceof Error ? error.message : 'Failed to update turbine',
+          loading: false
+        }));
+        throw error;
+      }
+    },
+
+    deleteTurbine: async (id: string) => {
+      update(state => ({ ...state, loading: true, error: null }));
+      try {
+        await apiClient.deleteWindTurbine(id);
+        update(state => ({
+          ...state,
+          // Remove the turbine from the list if it exists
+          turbines: state.turbines.filter(t => t.id !== id),
+          totalCount: Math.max(0, state.totalCount - 1),
+          loading: false
+        }));
+      } catch (error) {
+        update(state => ({
+          ...state,
+          error: error instanceof Error ? error.message : 'Failed to delete turbine',
+          loading: false
         }));
         throw error;
       }

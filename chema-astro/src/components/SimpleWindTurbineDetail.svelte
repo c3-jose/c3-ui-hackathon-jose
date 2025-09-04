@@ -10,8 +10,12 @@
   import GaugeChart from './charts/GaugeChart.svelte';
   import BarChart from './charts/BarChart.svelte';
   import TurbineLocationMapLeaflet from './TurbineLocationMapLeaflet.svelte';
+  import EditTurbineModal from './EditTurbineModal.svelte';
   
   let activeTab = 'overview';
+  let showEditModal = false;
+  let showDeleteConfirm = false;
+  let isDeleting = false;
   
   // Get tab from URL or set default
   function getTabFromUrl(): string {
@@ -218,6 +222,45 @@
       }
     };
   });
+
+  // Edit modal functions
+  function openEditModal() {
+    showEditModal = true;
+  }
+
+  function handleTurbineUpdated(event: CustomEvent) {
+    // Refresh the turbine data after update
+    windTurbineStore.fetchTurbine(turbineId);
+    showEditModal = false;
+  }
+
+  // Delete confirmation functions
+  function openDeleteConfirm() {
+    showDeleteConfirm = true;
+  }
+
+  function closeDeleteConfirm() {
+    showDeleteConfirm = false;
+  }
+
+  async function handleDelete() {
+    if (!turbine || isDeleting) return;
+
+    isDeleting = true;
+    
+    // Call the delete API in the background - don't wait for it
+    windTurbineStore.deleteTurbine(turbine.id).catch(error => {
+      console.error('Failed to delete turbine:', error);
+    });
+    
+    // Close modal and navigate immediately
+    closeDeleteConfirm();
+    
+    // Navigate to turbines list
+    if (typeof window !== 'undefined') {
+      window.location.href = '/windturbines';
+    }
+  }
   
   // Format capacity
   function formatCapacity(kw: number): string {
@@ -513,13 +556,19 @@
           </div>
           
           <div class="flex gap-3">
-            <button class="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors duration-200">
+            <button 
+              class="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors duration-200"
+              on:click={openEditModal}
+            >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
               </svg>
               Edit
             </button>
-            <button class="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors duration-200">
+            <button 
+              class="inline-flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition-colors duration-200"
+              on:click={openDeleteConfirm}
+            >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
               </svg>
@@ -1252,3 +1301,83 @@
     </div>
   {/if}
 </div>
+
+<!-- Edit Turbine Modal -->
+<EditTurbineModal 
+  bind:isOpen={showEditModal}
+  turbine={turbine}
+  on:turbineUpdated={handleTurbineUpdated}
+  on:close={() => showEditModal = false}
+/>
+
+<!-- Delete Confirmation Modal -->
+{#if showDeleteConfirm}
+  <div 
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+    on:click={closeDeleteConfirm}
+  >
+    <div 
+      class="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+      on:click|stopPropagation
+    >
+      <!-- Modal header -->
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-900">Delete Wind Turbine</h2>
+        <button 
+          class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+          on:click={closeDeleteConfirm}
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Warning message -->
+      <div class="mb-6">
+        <div class="flex items-center mb-3">
+          <div class="flex-shrink-0">
+            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-lg font-medium text-red-800">Warning</h3>
+          </div>
+        </div>
+        <p class="text-gray-700">
+          Are you sure you want to delete <strong>{turbine?.name}</strong>? 
+          This action cannot be undone. All associated data will be permanently removed.
+        </p>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          on:click={closeDeleteConfirm}
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+          disabled={isDeleting}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          on:click={handleDelete}
+          class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isDeleting}
+        >
+          {#if isDeleting}
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Deleting...
+          {:else}
+            Delete Turbine
+          {/if}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

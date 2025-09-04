@@ -68,12 +68,16 @@ class ApiClient {
     });
   }
 
-  async updateWindTurbine(id: string, data: Partial<WindTurbine>): Promise<WindTurbine> {
+  async updateWindTurbine(id: string, turbine: Omit<WindTurbine, 'id' | 'createdAt' | 'updatedAt'>): Promise<WindTurbine> {
     return this.request<WindTurbine>(`/windturbines/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(turbine),
     });
   }
+
 
   async deleteWindTurbine(id: string): Promise<void> {
     return this.request<void>(`/windturbines/${id}`, {
