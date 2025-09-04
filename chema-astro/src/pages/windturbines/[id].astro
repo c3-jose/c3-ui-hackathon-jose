@@ -1,0 +1,39 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Sidebar from '../../components/Sidebar.svelte';
+import SimpleWindTurbineDetail from '../../components/SimpleWindTurbineDetail.svelte';
+
+export const prerender = false;
+
+// This will handle dynamic routing for individual wind turbines
+// URLs like /windturbines/123 will be handled here
+const { id } = Astro.params;
+
+if (!id) {
+  return new Response(null, {
+    status: 404,
+    statusText: 'Not found'
+  });
+}
+
+const title = `Wind Turbine ${id}`;
+---
+
+<Layout title={title}>
+  <Sidebar client:load />
+  <main class="flex-1 ml-80 transition-all duration-300 bg-base-200 overflow-x-hidden">
+    <div class="container mx-auto px-6 py-8">
+      <div class="mb-6">
+        <a href="/windturbines" class="btn btn-ghost gap-2 mb-4">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Back to Turbines
+        </a>
+        <h1 class="text-4xl font-bold text-base-content mb-2">Wind Turbine {id}</h1>
+        <p class="text-base-content/70">Detailed monitoring and control panel</p>
+      </div>
+      <SimpleWindTurbineDetail turbineId={id} client:load />
+    </div>
+  </main>
+</Layout>
