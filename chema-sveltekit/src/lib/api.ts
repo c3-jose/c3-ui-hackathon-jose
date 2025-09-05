@@ -101,9 +101,9 @@ export const windTurbinesAPI = {
   },
 
   // Update an existing wind turbine
-  async update(id: string, updates: WindTurbineUpdate): Promise<ApiResponse<WindTurbine>> {
-    return apiRequest<ApiResponse<WindTurbine>>(`/windturbines/${id}`, {
-      method: 'PUT',
+  async update(id: string, updates: WindTurbineUpdate): Promise<WindTurbine> {
+    return apiRequest<WindTurbine>(`/windturbines/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(updates)
     });
   },

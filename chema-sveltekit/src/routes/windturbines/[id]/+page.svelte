@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { windTurbines, windTurbinesActions, workOrders, workOrdersActions } from '$lib/stores';
-  import type { WindTurbine, WorkOrder } from '$lib/types';
+  import { windTurbines, windTurbinesActions, workOrders, workOrdersActions, notificationsActions } from '$lib/stores';
+  import type { WindTurbine, WorkOrder, WindTurbineUpdate } from '$lib/types';
   import PowerChart from '$lib/components/PowerChart.svelte';
   import WindTurbineMap from '$lib/components/WindTurbineMap.svelte';
   import Breadcrumb from '$lib/components/Breadcrumb.svelte';
+  import Modal from '$lib/components/Modal.svelte';
+  import EditTurbineForm from '$lib/components/EditTurbineForm.svelte';
+  import ConfirmationDialog from '$lib/components/ConfirmationDialog.svelte';
   import type { PageData } from './$types';
   
   export let data: PageData;
@@ -13,6 +16,11 @@
   let activeTab = 'overview';
   let editMode = false;
   let showDeleteModal = false;
+  let showEditModal = false;
+  let showConfirmDialog = false;
+  let isSubmitting = false;
+  let serverError: string | null = null;
+  let pendingChanges: WindTurbineUpdate | null = null;
   
   // Mock performance data for charts
   let performanceData = [
@@ -27,7 +35,8 @@
   
   $: turbineId = $page.params.id;
   // Use server data first, then fall back to store data
-  $: currentTurbine = data.turbine || $windTurbines.currentTurbine;
+  // Use store value if it's for the current turbine (updated after edits), otherwise use server data
+  $: currentTurbine = ($windTurbines.currentTurbine?.id === turbineId) ? $windTurbines.currentTurbine : data.turbine;
   $: turbineWorkOrders = $workOrders.workOrders.filter(wo => wo.windTurbineId === turbineId);
   
   function setActiveTab(tab: string) {
@@ -65,11 +74,49 @@
   }
   
   function handleEdit() {
-    editMode = true;
+    showEditModal = true;
+    serverError = null;
   }
   
   function handleDelete() {
     showDeleteModal = true;
+  }
+
+  function handleEditSubmit(event: CustomEvent<WindTurbineUpdate>) {
+    pendingChanges = event.detail;
+    showConfirmDialog = true;
+  }
+
+  function handleEditCancel() {
+    showEditModal = false;
+    serverError = null;
+    pendingChanges = null;
+  }
+
+  async function confirmUpdate() {
+    if (!pendingChanges || !currentTurbine) return;
+    
+    isSubmitting = true;
+    serverError = null;
+    
+    try {
+      await windTurbinesActions.updateTurbine(currentTurbine.id, pendingChanges);
+      showEditModal = false;
+      showConfirmDialog = false;
+      notificationsActions.addNotification('success', 'Turbine Updated', `Wind turbine "${pendingChanges.name || currentTurbine.name}" updated successfully!`);
+      pendingChanges = null;
+    } catch (error) {
+      serverError = error instanceof Error ? error.message : 'Failed to update turbine';
+      notificationsActions.addNotification('error', 'Error', serverError);
+      showConfirmDialog = false; // Close confirmation, keep edit modal open
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
+  function cancelUpdate() {
+    showConfirmDialog = false;
+    pendingChanges = null;
   }
   
   function confirmDelete() {
@@ -83,13 +130,16 @@
   
   onMount(() => {
     if (turbineId) {
-      // Only fetch work orders since we have turbine data from server
-      workOrdersActions.updateFilters({ windTurbineId: turbineId });
-      
-      // If we don't have turbine data from server, fetch it client-side
-      if (!data.turbine) {
+      // Set the current turbine in the store if we have server data
+      if (data.turbine) {
+        windTurbinesActions.setCurrentTurbine(data.turbine);
+      } else {
+        // If we don't have turbine data from server, fetch it client-side
         windTurbinesActions.fetchTurbineById(turbineId);
       }
+      
+      // Fetch work orders for this turbine
+      workOrdersActions.updateFilters({ windTurbineId: turbineId });
     }
   });
 </script>
@@ -707,6 +757,38 @@
     </div>
   {/if}
 </div>
+
+<!-- Edit Turbine Modal -->
+{#if currentTurbine}
+  <Modal 
+    bind:isOpen={showEditModal} 
+    title="Edit Wind Turbine" 
+    size="large"
+    on:close={handleEditCancel}
+  >
+    <EditTurbineForm
+      turbine={currentTurbine}
+      {isSubmitting}
+      {serverError}
+      on:submit={handleEditSubmit}
+      on:cancel={handleEditCancel}
+    />
+  </Modal>
+{/if}
+
+<!-- Confirmation Dialog -->
+{#if pendingChanges}
+  <ConfirmationDialog
+    bind:isOpen={showConfirmDialog}
+    title="Confirm Changes"
+    message="Are you sure you want to update this wind turbine? This action will modify the turbine's configuration and cannot be undone."
+    confirmText="Update Turbine"
+    cancelText="Cancel"
+    type="warning"
+    on:confirm={confirmUpdate}
+    on:cancel={cancelUpdate}
+  />
+{/if}
 
 <style lang="scss">
   .breadcrumb {

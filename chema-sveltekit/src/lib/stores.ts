@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import type {
   WindTurbine,
   WindTurbineCreate,
+  WindTurbineUpdate,
   WorkOrder,
   ApiSummary,
   WindTurbineFilters,
@@ -155,19 +156,23 @@ function createWindTurbinesStore() {
       }
     },
 
-    updateTurbine: async (id: string, updates: any) => {
-      if (!browser) return; // Skip on server
+    updateTurbine: async (id: string, updates: WindTurbineUpdate): Promise<WindTurbine> => {
+      if (!browser) throw new Error('Browser required'); // Skip on server
       
       update(state => ({ ...state, loading: true, error: null }));
       try {
-        const response = await api.windTurbines.update(id, updates);
+        const updatedTurbine = await api.windTurbines.update(id, updates);
+        
+        // Update both the current turbine and the list
         update(state => ({
           ...state,
-          currentTurbine: state.currentTurbine?.id === id ? response.data : state.currentTurbine,
-          loading: false
+          currentTurbine: state.currentTurbine?.id === id ? updatedTurbine : state.currentTurbine,
+          turbines: state.turbines.map(t => t.id === id ? updatedTurbine : t),
+          loading: false,
+          error: null
         }));
-        // Refresh the list
-        windTurbinesActions.fetchTurbines();
+        
+        return updatedTurbine;
       } catch (error) {
         update(state => ({
           ...state,
